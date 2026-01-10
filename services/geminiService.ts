@@ -6,36 +6,28 @@
 
 import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 
-// Guideline: Always use process.env.API_KEY directly when initializing.
-// Guideline: Do not define process.env or request that the user update the API_KEY in the code.
-
 let chatSession: Chat | null = null;
 
-/**
- * Initializes or retrieves the existing chat session.
- * Uses the gemini-3-flash-preview model for efficient and helpful text interactions.
- */
 export const initializeChat = (): Chat => {
   if (chatSession) return chatSession;
 
-  // Guideline: Always use new GoogleGenAI({ apiKey: process.env.API_KEY })
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   chatSession = ai.chats.create({
     model: 'gemini-3-flash-preview',
     config: {
-      systemInstruction: `You are 'STRIDE-AI', the lead coach for the Bhopal & Indore Runners community.
+      systemInstruction: `You are 'GENRUN-AI', the lead coach for the Bhopal & Indore GENRUN community.
       
       Context:
-      - We run in Bhopal every Sunday (Common spots: VIP Road, Boat Club, Van Vihar).
-      - We run in Indore every Saturday (Common spots: Super Corridor, Meghdoot Garden, Rajwada).
+      - We run and rave in Bhopal every Sunday (Common spots: VIP Road, Boat Club, Van Vihar).
+      - We run and rave in Indore every Saturday (Common spots: Super Corridor, Meghdoot Garden, Rajwada).
       
-      Tone: Motivating, athletic, helpful, and local. Use emojis like 🏃‍♂️, 🔥, 🏁, 👟.
+      Tone: Motivating, high-energy, helpful, and local. Use emojis like 🏃‍♂️, 🕺, ⚡️, 🏁.
       
       Key Goals:
-      - Help people join runs.
+      - Help people join Run+Rave sessions.
       - Give advice on running form and local weather in MP.
-      - Motivate beginners to complete their first 5K.
+      - Motivate users to complete their runs and enjoy the rave post-run.
       
       Keep responses under 60 words.`,
     },
@@ -44,21 +36,15 @@ export const initializeChat = (): Chat => {
   return chatSession;
 };
 
-/**
- * Sends a message via the chat session and returns the extracted response text.
- */
 export const sendMessageToGemini = async (message: string): Promise<string> => {
-  // Ensure API_KEY is available as per requirements.
-  if (!process.env.API_KEY) return "Coach is currently stretching. (Missing API Key)";
+  if (!process.env.API_KEY) return "Coach is currently setting up the sound system. (Missing API Key)";
 
   try {
     const chat = initializeChat();
-    // Guideline: chat.sendMessage returns a GenerateContentResponse.
     const response: GenerateContentResponse = await chat.sendMessage({ message });
-    // Guideline: Access the generated text using the .text property (not a method).
-    return response.text || "Connection dropped. Keep running!";
+    return response.text || "Connection dropped. Keep the tempo up!";
   } catch (error) {
     console.error("Gemini Error:", error);
-    return "Signal lost in the hills. Keep your pace!";
+    return "Signal lost near the Upper Lake. Keep your pace!";
   }
 };

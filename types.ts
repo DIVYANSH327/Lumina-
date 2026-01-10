@@ -8,6 +8,7 @@ export interface User {
   id: string;
   name: string;
   phone: string;
+  password?: string; // Stored in plain text for this local-only mock app
   city: 'Bhopal' | 'Indore';
 }
 
@@ -15,6 +16,8 @@ export interface RunEvent {
   id: string;
   title: string;
   location: string;
+  meetingPoint: string;
+  raveLocation: string;
   city: 'Bhopal' | 'Indore';
   day: string;
   date: string;
@@ -39,9 +42,6 @@ export interface ChatMessage {
   isError?: boolean;
 }
 
-/**
- * Artist interface added to resolve import error in ArtistCard.tsx
- */
 export interface Artist {
   id: string;
   name: string;

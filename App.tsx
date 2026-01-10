@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Ticket, MapPin, Menu, X, Calendar, 
@@ -12,7 +12,8 @@ import {
   Map, User as UserIcon, CheckCircle, Info, LogOut, ArrowRight,
   MessageCircle, LayoutDashboard, UserCheck, ClipboardList, Phone,
   ChevronRight, Building2, Zap, RefreshCcw, ShieldCheck, AlertCircle,
-  Music, Flag, Settings, Eye, EyeOff, Share2, Clipboard, ZapOff
+  Music, Flag, Settings, Eye, EyeOff, Share2, Clipboard, ZapOff, Scale, FileText, RefreshCw, Mail,
+  Rss
 } from 'lucide-react';
 import FluidBackground from './components/FluidBackground';
 import GradientText from './components/GlitchText';
@@ -204,6 +205,62 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, events }) => {
   );
 };
 
+// --- Live Ticker Component ---
+const LiveTicker: React.FC<{ tickets: UserTicket[] }> = ({ tickets }) => {
+  const checkedInUsers = useMemo(() => {
+    return tickets
+      .filter(t => t.checkInStatus)
+      .reverse(); // Newest first
+  }, [tickets]);
+
+  if (checkedInUsers.length === 0) {
+    return (
+      <div className="bg-black/50 border-b border-white/5 py-2 overflow-hidden flex items-center">
+        <div className="px-6 flex items-center gap-2 shrink-0 border-r border-white/10">
+           <div className="w-2 h-2 rounded-full bg-gray-600" />
+           <span className="text-[9px] font-black uppercase text-gray-500 tracking-widest">Awaiting Live Feed...</span>
+        </div>
+        <div className="px-6 text-[9px] font-bold text-gray-600 uppercase tracking-[0.2em] italic">
+          Rave portal open. Get your pass verified to appear on the grid.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-black/80 backdrop-blur-md border-b border-[#d9ff00]/10 py-2.5 overflow-hidden flex items-center relative z-40">
+      <div className="px-6 flex items-center gap-3 shrink-0 border-r border-white/10 bg-black z-10 shadow-[20px_0_20px_rgba(0,0,0,0.8)]">
+         <div className="relative">
+           <div className="w-2 h-2 rounded-full bg-[#d9ff00] animate-ping absolute inset-0" />
+           <div className="w-2 h-2 rounded-full bg-[#d9ff00]" />
+         </div>
+         <span className="text-[10px] font-black uppercase text-[#d9ff00] tracking-[0.2em]">Live Collective Feed</span>
+      </div>
+      
+      <div className="marquee-wrapper overflow-hidden flex-1">
+        <motion.div 
+          animate={{ x: [0, -2000] }} 
+          transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+          className="flex gap-16 whitespace-nowrap items-center px-10"
+        >
+          {/* Repeat multiple times for infinite effect */}
+          {[1, 2, 3].map((set) => (
+            <React.Fragment key={set}>
+              {checkedInUsers.map((user, i) => (
+                <div key={`${set}-${i}`} className="flex items-center gap-3">
+                  <span className="text-[10px] font-bold text-white uppercase tracking-wider">{user.runnerName}</span>
+                  <span className="text-[9px] font-black text-[#d9ff00]/60 uppercase tracking-tighter bg-[#d9ff00]/5 px-2 py-0.5 rounded border border-[#d9ff00]/10">Checked-In ⚡️</span>
+                  <div className="w-1 h-1 bg-white/20 rounded-full" />
+                </div>
+              ))}
+            </React.Fragment>
+          ))}
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   const [events, setEvents] = useState<RunEvent[]>([]);
   const [userTickets, setUserTickets] = useState<UserTicket[]>([]);
@@ -221,6 +278,7 @@ const App: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [legalModal, setLegalModal] = useState<{ isOpen: boolean, type: 'privacy' | 'terms' | 'refund' | 'contact' | null }>({ isOpen: false, type: null });
   const [adminTab, setAdminTab] = useState<'runs' | 'tickets' | 'checkin'>('checkin');
   const [adminPass, setAdminPass] = useState('');
   const [isAuth, setIsAuth] = useState(false);
@@ -548,7 +606,11 @@ const App: React.FC = () => {
         </section>
       ) : (
         <>
-          <header className="relative h-[90svh] flex flex-col items-center justify-center text-center px-4 pt-20">
+          <div className="pt-[80px]"> {/* Spacer for fixed nav */}
+            <LiveTicker tickets={userTickets} />
+          </div>
+
+          <header className="relative h-[85svh] flex flex-col items-center justify-center text-center px-4 pt-10">
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8 }}>
               <div className="flex items-center justify-center gap-4 mb-8">
                 <div className="px-6 py-2 bg-zinc-900 border border-[#d9ff00]/30 rounded-full flex items-center gap-3">
@@ -731,14 +793,150 @@ const App: React.FC = () => {
         )}
       </AnimatePresence>
 
-      <footer className="py-24 border-t border-white/5 text-center text-gray-600 px-6">
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="p-2 bg-white/5 rounded-lg"><Trophy size={20} className="text-[#d9ff00]" /></div>
-          <span className="font-heading font-bold text-white text-xl tracking-tighter uppercase">GENRUN</span>
+      {/* Legal Pages Modal */}
+      <AnimatePresence>
+        {legalModal.isOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[120] bg-black/98 backdrop-blur-3xl flex items-center justify-center p-4 md:p-10 overflow-hidden">
+             <div className="w-full max-w-4xl h-full bg-zinc-900/50 border border-white/10 rounded-[3rem] overflow-hidden flex flex-col shadow-2xl relative">
+                <button 
+                  onClick={() => setLegalModal({ isOpen: false, type: null })} 
+                  className="absolute top-8 right-8 z-20 p-4 bg-white/5 rounded-full hover:bg-white/10 transition-colors"
+                >
+                  <X size={24} />
+                </button>
+
+                <div className="p-12 md:p-16 overflow-y-auto custom-scrollbar flex-1">
+                   {legalModal.type === 'privacy' && (
+                     <div className="space-y-8 font-light text-gray-300 leading-relaxed max-w-3xl">
+                        <div className="flex items-center gap-4 mb-12">
+                           <div className="p-3 bg-[#d9ff00] rounded-2xl shadow-xl shadow-[#d9ff00]/10"><ShieldCheck className="text-black" size={32} /></div>
+                           <h2 className="text-4xl font-black uppercase tracking-tighter text-white">Privacy Policy</h2>
+                        </div>
+                        <p className="text-[#d9ff00] font-black uppercase text-xs tracking-widest mb-4">Effective Date: October 2025</p>
+                        <section className="space-y-4">
+                          <h3 className="text-xl font-black uppercase text-white tracking-tight">1. Information We Collect</h3>
+                          <p>We collect information you provide directly to us when you register for GENRUN, including your name, WhatsApp number, city, and payment details. We also collect usage data to improve our services.</p>
+                        </section>
+                        <section className="space-y-4">
+                          <h3 className="text-xl font-black uppercase text-white tracking-tight">2. How We Use Information</h3>
+                          <p>Your information is used to process registrations, send event details via WhatsApp, verify entries at events, and improve the GENRUN experience. We do not sell your personal data to third parties.</p>
+                        </section>
+                        <section className="space-y-4">
+                          <h3 className="text-xl font-black uppercase text-white tracking-tight">3. Data Security</h3>
+                          <p>We implement appropriate technical and organizational measures to protect the security of your personal information. However, no data transmission over the internet can be guaranteed as 100% secure.</p>
+                        </section>
+                        <section className="space-y-4">
+                          <h3 className="text-xl font-black uppercase text-white tracking-tight">4. Third-Party Services</h3>
+                          <p>We use Razorpay for payment processing. Their use of your personal information is governed by their Privacy Policy. We also use Google Gemini API for AI coaching assistance.</p>
+                        </section>
+                     </div>
+                   )}
+
+                   {legalModal.type === 'terms' && (
+                     <div className="space-y-8 font-light text-gray-300 leading-relaxed max-w-3xl">
+                        <div className="flex items-center gap-4 mb-12">
+                           <div className="p-3 bg-[#d9ff00] rounded-2xl shadow-xl shadow-[#d9ff00]/10"><FileText className="text-black" size={32} /></div>
+                           <h2 className="text-4xl font-black uppercase tracking-tighter text-white">Terms of Service</h2>
+                        </div>
+                        <p className="text-[#d9ff00] font-black uppercase text-xs tracking-widest mb-4">Last Updated: October 2025</p>
+                        <section className="space-y-4">
+                          <h3 className="text-xl font-black uppercase text-white tracking-tight">1. Acceptance of Terms</h3>
+                          <p>By accessing or using the GENRUN platform, you agree to be bound by these Terms. If you do not agree, please do not use our services.</p>
+                        </section>
+                        <section className="space-y-4">
+                          <h3 className="text-xl font-black uppercase text-white tracking-tight">2. Member Eligibility</h3>
+                          <p>Members must be 18 years or older or have parental consent. Members must be physically fit to participate in high-intensity running activities.</p>
+                        </section>
+                        <section className="space-y-4">
+                          <h3 className="text-xl font-black uppercase text-white tracking-tight">3. Event Participation</h3>
+                          <p>GENRUN events involve physical activity and loud music. Participants assume all risks associated with participation, including but not limited to falls, contact with other participants, and the effects of weather.</p>
+                        </section>
+                        <section className="space-y-4">
+                          <h3 className="text-xl font-black uppercase text-white tracking-tight">4. Intellectual Property</h3>
+                          <p>All content on the GENRUN platform, including logos, designs, and AI coaching logic, is the property of GENRUN Collective.</p>
+                        </section>
+                     </div>
+                   )}
+
+                   {legalModal.type === 'refund' && (
+                     <div className="space-y-8 font-light text-gray-300 leading-relaxed max-w-3xl">
+                        <div className="flex items-center gap-4 mb-12">
+                           <div className="p-3 bg-[#d9ff00] rounded-2xl shadow-xl shadow-[#d9ff00]/10"><RefreshCw className="text-black" size={32} /></div>
+                           <h2 className="text-4xl font-black uppercase tracking-tighter text-white">Refund Policy</h2>
+                        </div>
+                        <p className="text-[#d9ff00] font-black uppercase text-xs tracking-widest mb-4">Standard Operational Policy</p>
+                        <section className="space-y-4">
+                          <h3 className="text-xl font-black uppercase text-white tracking-tight">1. No Refund Policy</h3>
+                          <p>Due to the community nature and overheads of organizing high-energy events, GENRUN follows a strict NO REFUND policy once a registration is confirmed.</p>
+                        </section>
+                        <section className="space-y-4">
+                          <h3 className="text-xl font-black uppercase text-white tracking-tight">2. Event Cancellation</h3>
+                          <p>In the rare case of an event being cancelled by GENRUN due to unforeseen circumstances (e.g., severe weather or government restrictions), members will be offered a priority pass for the next scheduled session. No cash refunds will be issued.</p>
+                        </section>
+                        <section className="space-y-4">
+                          <h3 className="text-xl font-black uppercase text-white tracking-tight">3. Transfer of Pass</h3>
+                          <p>Members may transfer their pass to another registered member up to 24 hours before the event start time. Please contact support via WhatsApp to process a transfer.</p>
+                        </section>
+                     </div>
+                   )}
+
+                   {legalModal.type === 'contact' && (
+                     <div className="space-y-8 font-light text-gray-300 leading-relaxed max-w-3xl">
+                        <div className="flex items-center gap-4 mb-12">
+                           <div className="p-3 bg-[#d9ff00] rounded-2xl shadow-xl shadow-[#d9ff00]/10"><Mail className="text-black" size={32} /></div>
+                           <h2 className="text-4xl font-black uppercase tracking-tighter text-white">Contact Us</h2>
+                        </div>
+                        <p className="text-[#d9ff00] font-black uppercase text-xs tracking-widest mb-4">Reach the Crew</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                           <div className="p-8 bg-black/40 rounded-3xl border border-white/5 space-y-4">
+                              <h4 className="text-white font-black uppercase tracking-widest text-sm">Main Office</h4>
+                              <p className="text-gray-400 text-sm">GENRUN HQ<br/>Arera Colony, Bhopal<br/>Madhya Pradesh - 462016</p>
+                           </div>
+                           <div className="p-8 bg-black/40 rounded-3xl border border-white/5 space-y-4">
+                              <h4 className="text-white font-black uppercase tracking-widest text-sm">Direct Support</h4>
+                              <p className="text-gray-400 text-sm">Email: help@genrun.club<br/>WhatsApp: +91 9334220235</p>
+                           </div>
+                        </div>
+                        <div className="pt-8">
+                           <p>Our support crew is available from Monday to Saturday, 10 AM to 6 PM IST. For urgent event-day queries, please head to the meeting point early.</p>
+                        </div>
+                     </div>
+                   )}
+                </div>
+             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <footer className="py-24 border-t border-white/5 bg-black/50 px-6">
+        <div className="max-w-7xl mx-auto flex flex-col items-center text-center">
+          <div className="flex items-center justify-center gap-3 mb-12">
+            <div className="p-2 bg-white/5 rounded-lg"><Trophy size={20} className="text-[#d9ff00]" /></div>
+            <span className="font-heading font-bold text-white text-xl tracking-tighter uppercase">GENRUN</span>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-16 mb-16 text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">
+             <button onClick={() => setLegalModal({ isOpen: true, type: 'privacy' })} className="hover:text-[#d9ff00] transition-colors">Privacy Policy</button>
+             <button onClick={() => setLegalModal({ isOpen: true, type: 'terms' })} className="hover:text-[#d9ff00] transition-colors">Terms of Service</button>
+             <button onClick={() => setLegalModal({ isOpen: true, type: 'refund' })} className="hover:text-[#d9ff00] transition-colors">Refund Policy</button>
+             <button onClick={() => setLegalModal({ isOpen: true, type: 'contact' })} className="hover:text-[#d9ff00] transition-colors">Contact Us</button>
+          </div>
+
+          <div className="mb-12">
+            <p className="text-xs uppercase tracking-widest text-gray-400 mb-4">Official Community Support</p>
+            <a href="https://wa.me/919334220235" target="_blank" className="inline-flex items-center gap-2 bg-[#d9ff00]/10 text-[#d9ff00] px-8 py-3 rounded-full border border-[#d9ff00]/20 hover:bg-[#d9ff00]/20 transition-all font-bold text-sm">
+              <MessageCircle size={16} /> Whatsapp +91 9334220235
+            </a>
+          </div>
+
+          <p className="text-sm max-w-xl leading-relaxed font-light text-gray-600 mb-12">Madhya Pradesh's premiere collective for high-energy weekend runs and industrial electronic music. Join the rhythm.</p>
+          
+          <div className="text-[9px] text-gray-800 uppercase tracking-widest font-black flex items-center gap-4">
+             <span>© 2025 GENRUN COLLECTIVE</span>
+             <span className="w-1 h-1 bg-gray-900 rounded-full" />
+             <span>BHOPAL / INDORE HUB</span>
+          </div>
         </div>
-        <div className="mb-8"><p className="text-xs uppercase tracking-widest text-gray-400 mb-2">Member Support</p><a href="https://wa.me/919334220235" target="_blank" className="inline-flex items-center gap-2 bg-[#d9ff00]/10 text-[#d9ff00] px-6 py-2 rounded-full border border-[#d9ff00]/20 hover:bg-[#d9ff00]/20 transition-all font-bold text-sm"><MessageCircle size={16} /> Whatsapp @+91 9334220235</a></div>
-        <p className="text-sm max-w-xl mx-auto leading-relaxed font-light text-gray-500 mb-8">MP's premiere high-energy collective for weekend runners and electronic enthusiasts. Redefine your rhythm.</p>
-        <div className="text-[10px] text-gray-800 uppercase tracking-widest font-black">© 2025 GENRUN COLLECTIVE</div>
       </footer>
 
       <style>{`

@@ -1,16 +1,36 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
 
-
-export interface Artist {
+export interface User {
   id: string;
   name: string;
-  genre: string;
-  image: string;
+  phone: string;
+  city: 'Bhopal' | 'Indore';
+}
+
+export interface RunEvent {
+  id: string;
+  title: string;
+  location: string;
+  city: 'Bhopal' | 'Indore';
   day: string;
+  date: string;
+  image: string;
   description: string;
+  distance: string;
+  startTime: string;
+}
+
+export interface UserTicket {
+  id: string;
+  runId: string;
+  userId: string;
+  runnerName: string;
+  runnerPhone: string;
+  checkInStatus: boolean;
 }
 
 export interface ChatMessage {
@@ -19,9 +39,13 @@ export interface ChatMessage {
   isError?: boolean;
 }
 
-export enum Section {
-  HERO = 'hero',
-  LINEUP = 'lineup',
-  EXPERIENCE = 'experience',
-  TICKETS = 'tickets',
+/**
+ * Artist interface added to resolve import error in ArtistCard.tsx
+ */
+export interface Artist {
+  id: string;
+  name: string;
+  genre: string;
+  image: string;
+  day: string;
 }

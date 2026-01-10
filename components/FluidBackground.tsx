@@ -1,14 +1,13 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
 
-
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 
 const StarField = () => {
-  // Reduced star count for performance
   const stars = useMemo(() => {
     return Array.from({ length: 15 }).map((_, i) => ({
       id: i,
@@ -17,7 +16,7 @@ const StarField = () => {
       y: Math.random() * 100,
       duration: Math.random() * 3 + 2,
       delay: Math.random() * 2,
-      opacity: Math.random() * 0.7 + 0.3
+      opacity: Math.random() * 0.4 + 0.1
     }));
   }, []);
 
@@ -36,11 +35,11 @@ const StarField = () => {
           }}
           initial={{ opacity: star.opacity, scale: 1 }}
           animate={{
-            opacity: [star.opacity, 1, star.opacity],
-            scale: [1, 1.5, 1],
+            opacity: [star.opacity, star.opacity * 2, star.opacity],
+            scale: [1, 1.2, 1],
           }}
           transition={{
-            duration: star.duration * 2, // Slower animation
+            duration: star.duration * 3,
             repeat: Infinity,
             ease: "easeInOut",
             delay: star.delay,
@@ -53,60 +52,54 @@ const StarField = () => {
 
 const FluidBackground: React.FC = () => {
   return (
-    <div className="fixed inset-0 -z-10 overflow-hidden bg-gradient-to-br from-[#31326f] via-[#28295c] to-[#1f2048]">
+    <div className="fixed inset-0 -z-10 overflow-hidden bg-[#09090b]">
       
       <StarField />
 
-      {/* Blob 1: Mint - Optimized Blur (60px -> 40px) and Animation Speed */}
+      {/* Primary Glow: Volt */}
       <motion.div
-        className="absolute top-[-10%] left-[-10%] w-[90vw] h-[90vw] bg-[#a8fbd3] rounded-full mix-blend-screen filter blur-[40px] opacity-30 will-change-transform"
+        className="absolute top-[-20%] left-[-10%] w-[120vw] h-[100vw] bg-[#d9ff00] rounded-full mix-blend-overlay filter blur-[120px] opacity-10 will-change-transform"
         animate={{
-          x: [0, 50, -25, 0],
-          y: [0, -25, 25, 0],
-        }}
-        transition={{
-          duration: 25,
-          repeat: Infinity,
-          ease: "linear"
-        }}
-        style={{ transform: 'translateZ(0)' }}
-      />
-
-      {/* Blob 2: Teal */}
-      <motion.div
-        className="absolute top-[20%] right-[-20%] w-[100vw] h-[80vw] bg-[#4fb7b3] rounded-full mix-blend-screen filter blur-[40px] opacity-20 will-change-transform"
-        animate={{
-          x: [0, -50, 25, 0],
-          y: [0, 50, -25, 0],
-        }}
-        transition={{
-          duration: 30,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-        style={{ transform: 'translateZ(0)' }}
-      />
-
-      {/* Blob 3: Periwinkle */}
-      <motion.div
-        className="absolute bottom-[-20%] left-[20%] w-[80vw] h-[80vw] bg-[#637ab9] rounded-full mix-blend-screen filter blur-[40px] opacity-20 will-change-transform"
-        animate={{
-          x: [0, 75, -75, 0],
+          x: [0, 100, -50, 0],
           y: [0, -50, 50, 0],
         }}
         transition={{
           duration: 35,
           repeat: Infinity,
-          ease: "easeInOut"
+          ease: "linear"
         }}
-        style={{ transform: 'translateZ(0)' }}
       />
 
-      {/* Static Grain Overlay */}
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay pointer-events-none"></div>
+      {/* Secondary Glow: Slate/Gray */}
+      <motion.div
+        className="absolute bottom-[-30%] right-[-10%] w-[100vw] h-[100vw] bg-[#27272a] rounded-full mix-blend-screen filter blur-[150px] opacity-40 will-change-transform"
+        animate={{
+          x: [0, -80, 40, 0],
+          y: [0, 80, -40, 0],
+        }}
+        transition={{
+          duration: 40,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+      />
+
+      {/* Subtle Racing Orange Hint */}
+      <motion.div
+        className="absolute top-[40%] right-[-10%] w-[60vw] h-[60vw] bg-[#f97316] rounded-full mix-blend-screen filter blur-[100px] opacity-5 will-change-transform"
+        animate={{
+          scale: [1, 1.2, 1],
+        }}
+        transition={{
+          duration: 20,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+      />
+
+      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] mix-blend-overlay pointer-events-none"></div>
       
-      {/* Vignette */}
-      <div className="absolute inset-0 bg-radial-gradient from-transparent via-black/10 to-black/60 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/40 pointer-events-none" />
     </div>
   );
 };

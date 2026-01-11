@@ -5,9 +5,10 @@
 */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Sparkles, Users, Lock } from 'lucide-react';
+import { MessageCircle, X, Send, Sparkles, Users, Lock, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../types';
+import { sendMessageToGemini } from '../services/geminiService';
 
 interface ChatMessage {
   id: string;
@@ -32,6 +33,7 @@ const AIChat: React.FC<AIChatProps> = ({ currentUser }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Load messages from local storage or use initial ones
@@ -65,22 +67,41 @@ const AIChat: React.FC<AIChatProps> = ({ currentUser }) => {
     if (isOpen) {
       setTimeout(scrollToBottom, 100);
     }
-  }, [messages, isOpen]);
+  }, [messages, isOpen, isTyping]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim() || !currentUser) return;
 
+    const userText = input.trim();
     const newMessage: ChatMessage = {
       id: Math.random().toString(36).substr(2, 9),
       userId: currentUser.id,
       userName: currentUser.name,
       userPic: currentUser.profilePic,
-      text: input.trim(),
+      text: userText,
       timestamp: Date.now(),
     };
 
     setMessages(prev => [...prev, newMessage]);
     setInput('');
+    setIsTyping(true);
+
+    // AI Response Integration
+    try {
+      const aiResponse = await sendMessageToGemini(userText);
+      const aiMessage: ChatMessage = {
+        id: Math.random().toString(36).substr(2, 9),
+        userId: 'gemini-ai',
+        userName: 'Coach (AI)',
+        text: aiResponse,
+        timestamp: Date.now(),
+      };
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (err) {
+      console.error("Failed to get AI response", err);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   return (
@@ -97,7 +118,7 @@ const AIChat: React.FC<AIChatProps> = ({ currentUser }) => {
             <div className="bg-[#d9ff00] p-6 flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="bg-black p-2 rounded-xl">
-                  <Users className="w-5 h-5 text-[#d9ff00]" />
+                  <Sparkles className="w-5 h-5 text-[#d9ff00]" />
                 </div>
                 <div>
                   <h3 className="font-heading font-bold text-black text-xs tracking-widest uppercase">Collective Chat</h3>
@@ -116,20 +137,25 @@ const AIChat: React.FC<AIChatProps> = ({ currentUser }) => {
             >
               {messages.map((msg) => {
                 const isMe = msg.userId === currentUser?.id;
+                const isAI = msg.userId === 'gemini-ai';
                 return (
                   <div
                     key={msg.id}
                     className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                   >
                     <div className={`flex items-center gap-2 mb-1.5 ${isMe ? 'flex-row-reverse' : ''}`}>
-                      {msg.userPic ? (
+                      {isAI ? (
+                        <div className="w-5 h-5 rounded-full bg-black flex items-center justify-center border border-[#d9ff00]/30 shadow-sm shadow-[#d9ff00]/20">
+                           <Sparkles size={10} className="text-[#d9ff00]" />
+                        </div>
+                      ) : msg.userPic ? (
                         <img src={msg.userPic} className="w-5 h-5 rounded-full object-cover border border-white/10" alt="" />
                       ) : (
                         <div className="w-5 h-5 rounded-full bg-zinc-800 flex items-center justify-center text-[8px] font-black uppercase text-gray-500">
                           {msg.userName.charAt(0)}
                         </div>
                       )}
-                      <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${isAI ? 'text-[#d9ff00]' : 'text-gray-500'}`}>
                         {isMe ? 'You' : msg.userName}
                       </span>
                     </div>
@@ -137,7 +163,9 @@ const AIChat: React.FC<AIChatProps> = ({ currentUser }) => {
                       className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed ${
                         isMe
                           ? 'bg-[#d9ff00] text-black font-semibold rounded-tr-none shadow-lg shadow-[#d9ff00]/10'
-                          : 'bg-zinc-800/50 text-gray-200 rounded-tl-none border border-white/5'
+                          : isAI 
+                            ? 'bg-zinc-800 border-l-2 border-[#d9ff00] text-gray-100 rounded-tl-none shadow-xl'
+                            : 'bg-zinc-800/50 text-gray-200 rounded-tl-none border border-white/5'
                       }`}
                     >
                       {msg.text}
@@ -145,6 +173,16 @@ const AIChat: React.FC<AIChatProps> = ({ currentUser }) => {
                   </div>
                 );
               })}
+              {isTyping && (
+                <div className="flex flex-col items-start animate-pulse">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-5 h-5 rounded-full bg-black flex items-center justify-center border border-[#d9ff00]/30">
+                       <Loader2 size={10} className="text-[#d9ff00] animate-spin" />
+                    </div>
+                    <span className="text-[9px] font-black text-[#d9ff00] uppercase tracking-widest">Coach (AI) is typing...</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Input */}
@@ -155,16 +193,17 @@ const AIChat: React.FC<AIChatProps> = ({ currentUser }) => {
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                    onKeyDown={(e) => e.key === 'Enter' && !isTyping && handleSend()}
                     placeholder="Message the collective..."
                     className="flex-1 bg-transparent text-white placeholder-gray-600 text-sm focus:outline-none px-3"
+                    disabled={isTyping}
                   />
                   <button
                     onClick={handleSend}
-                    disabled={!input.trim()}
+                    disabled={!input.trim() || isTyping}
                     className="bg-[#d9ff00] p-3 rounded-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
                   >
-                    <Send className="w-4 h-4 text-black" />
+                    {isTyping ? <Loader2 className="w-4 h-4 text-black animate-spin" /> : <Send className="w-4 h-4 text-black" />}
                   </button>
                 </div>
               ) : (

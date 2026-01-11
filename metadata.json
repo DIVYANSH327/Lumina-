@@ -1,6 +1,6 @@
 {
-  "name": "GENRUN Bhopal Indore",
-  "description": "Premium sports community for weekend runners and ravers in Bhopal and Indore.",
+  "name": "GENRUN Cloud Sync",
+  "description": "Production-grade collective portal for weekend runners with shared real-time records.",
   "requestFramePermissions": [
     "camera"
   ]

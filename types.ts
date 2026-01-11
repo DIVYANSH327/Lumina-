@@ -36,6 +36,7 @@ export interface UserTicket {
   runnerName: string;
   runnerPhone: string;
   checkInStatus: boolean;
+  timestamp: number; // Added to track booking time
 }
 
 export interface ChatMessage {

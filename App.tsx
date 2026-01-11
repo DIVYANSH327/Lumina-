@@ -25,7 +25,6 @@ import { RunEvent, UserTicket, User } from './types';
 import { jsPDF } from 'jspdf';
 
 // --- Shared Hub Configuration ---
-// If the API returns "Not Found", the app will handle it as an empty hub state.
 const SHARED_HUB_API = "https://67bc8651ed715aa51711202e.mockapi.io/api/v1/tickets";
 
 const INITIAL_RUNS: RunEvent[] = [
@@ -318,7 +317,6 @@ const App: React.FC = () => {
       const response = await fetch(SHARED_HUB_API);
       
       if (response.status === 404) {
-        console.warn("Shared Hub not found. Hub may be empty or uninitialized.");
         setUserTickets([]);
         setHubError(false);
         return;
@@ -333,11 +331,9 @@ const App: React.FC = () => {
           setLastSync(Date.now());
           setHubError(false);
         }
-      } else {
-        throw new Error("Cloud Hub returned non-JSON data.");
       }
     } catch (err) {
-      console.warn("Shared Hub Sync Suspended. Operating in Local Node mode.", err);
+      console.warn("Hub offline mode active.", err);
       setHubError(true);
       const savedTickets = localStorage.getItem('genrun_tickets');
       if (savedTickets) {
@@ -360,15 +356,33 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const handlePhoneFilter = (val: string) => val.replace(/\D/g, '').slice(0, 10);
+
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanPhone = signupForm.phone.trim().replace(/\D/g, '').slice(0, 10);
-    const fullPhone = `+91${cleanPhone}`;
-    if (signupForm.password !== signupForm.confirmPassword) { alert("Passwords do not match!"); return; }
+    if (signupForm.phone.length !== 10) {
+      alert("Validation failed: Please enter exactly 10 digits.");
+      return;
+    }
+    const fullPhone = `+91${signupForm.phone}`;
+    
+    if (signupForm.password !== signupForm.confirmPassword) { 
+      alert("Verification failed: Passwords do not match!"); 
+      return; 
+    }
+
     setIsAuthLoading(true);
     setAuthFeedback("Establishing identity...");
+    
     setTimeout(() => {
-      const newUser: User = { id: Math.random().toString(36).substr(2, 9), name: signupForm.name, phone: fullPhone, password: signupForm.password, city: signupForm.city as any, profilePic: signupForm.profilePic };
+      const newUser: User = { 
+        id: Math.random().toString(36).substr(2, 9), 
+        name: signupForm.name, 
+        phone: fullPhone, 
+        password: signupForm.password, 
+        city: signupForm.city as any, 
+        profilePic: signupForm.profilePic 
+      };
       const updatedUsers = [...registeredUsers, newUser];
       setRegisteredUsers(updatedUsers);
       setCurrentUser(newUser);
@@ -381,13 +395,18 @@ const App: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanPhone = loginPhone.trim().replace(/\D/g, '').slice(0, 10);
-    const fullPhone = `+91${cleanPhone}`;
+    if (loginPhone.length !== 10) {
+      alert("Validation failed: Please enter exactly 10 digits.");
+      return;
+    }
+    const fullPhone = `+91${loginPhone}`;
     const user = registeredUsers.find(u => u.phone === fullPhone && u.password === loginPassword);
     if (user) {
       setCurrentUser(user);
       localStorage.setItem('genrun_current_user', JSON.stringify(user));
-    } else { alert("Verification failed. Check credentials."); }
+    } else { 
+      alert("Identification Error: Invalid credentials."); 
+    }
   };
 
   const generateUniqueId = () => {
@@ -425,7 +444,7 @@ const App: React.FC = () => {
       setShowTermsModal(false);
       setSelectedRunToJoin(null);
       setIsProcessingRegistration(false);
-      alert(`Access Key Generated: ${ticketId}. Welcome to the Hub!`);
+      alert(`Access Key Generated: ${ticketId}. Data saved to Collective Hub.`);
     } catch (err) {
       const updated = [...userTickets, newTicket];
       setUserTickets(updated);
@@ -433,13 +452,12 @@ const App: React.FC = () => {
       setShowTermsModal(false);
       setSelectedRunToJoin(null);
       setIsProcessingRegistration(false);
-      alert(`Offline Access Granted: ${ticketId}. Cloud sync pending.`);
+      alert(`Local Access Granted: ${ticketId}. Cloud sync pending.`);
     }
   };
 
   const toggleCheckIn = async (ticketId: string, cloudId?: string) => {
     try {
-      // If we have a cloudId (from MockAPI), we can use it to update the specific resource
       const targetId = cloudId || userTickets.find(t => t.id === ticketId)?.id; 
       
       const response = await fetch(`${SHARED_HUB_API}/${targetId}`, {
@@ -472,7 +490,7 @@ const App: React.FC = () => {
         videoRef.current.play();
       }
     } catch (err) {
-      alert("Scanner failed. Please allow camera permissions.");
+      alert("Scanner failed. Please allow camera permissions in terminal.");
       setIsCameraActive(false);
     }
   };
@@ -481,7 +499,7 @@ const App: React.FC = () => {
     const cleanId = val.trim().toUpperCase();
     const t = userTickets.find(ticket => ticket.id === cleanId);
     if (t) {
-       toggleCheckIn(t.id, (t as any).id); // MockAPI uses its internal id for path
+       toggleCheckIn(t.id, (t as any).id);
        return true;
     }
     return false;
@@ -530,16 +548,47 @@ const App: React.FC = () => {
             {authMode === 'signup' ? (
               <form onSubmit={handleSignup} className="space-y-6">
                 <input type="text" placeholder="Full Name" required value={signupForm.name} onChange={e => setSignupForm({...signupForm, name: e.target.value})} className="w-full bg-black border border-white/10 p-4 rounded-2xl outline-none focus:border-[#d9ff00]" />
-                <input type="tel" placeholder="WhatsApp No." required value={signupForm.phone} onChange={e => setSignupForm({...signupForm, phone: e.target.value})} className="w-full bg-black border border-white/10 p-4 rounded-2xl outline-none focus:border-[#d9ff00]" />
+                
+                {/* Phone Input with +91 Prefix */}
+                <div className="flex bg-black border border-white/10 rounded-2xl overflow-hidden focus-within:border-[#d9ff00] transition-colors">
+                  <div className="px-4 flex items-center bg-white/5 border-r border-white/10 text-gray-400 font-black text-sm">+91</div>
+                  <input 
+                    type="tel" 
+                    placeholder="10-Digit WhatsApp No." 
+                    required 
+                    value={signupForm.phone} 
+                    maxLength={10}
+                    inputMode="numeric"
+                    onChange={e => setSignupForm({...signupForm, phone: handlePhoneFilter(e.target.value)})} 
+                    className="flex-1 bg-transparent p-4 outline-none text-white placeholder-gray-600" 
+                  />
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   {['Bhopal', 'Indore'].map(c => (<button key={c} type="button" onClick={() => setSignupForm({...signupForm, city: c})} className={`py-4 rounded-2xl border-2 text-[10px] font-black uppercase ${signupForm.city === c ? 'border-[#d9ff00] text-[#d9ff00]' : 'border-white/5 text-gray-500'}`}>{c}</button>))}
                 </div>
-                <input type="password" placeholder="Set Passphrase" required value={signupForm.password} onChange={e => setSignupForm({...signupForm, password: e.target.value})} className="w-full bg-black border border-white/10 p-4 rounded-2xl outline-none focus:border-[#d9ff00]" />
+                <div className="space-y-4">
+                  <input type="password" placeholder="Set Passphrase" required value={signupForm.password} onChange={e => setSignupForm({...signupForm, password: e.target.value})} className="w-full bg-black border border-white/10 p-4 rounded-2xl outline-none focus:border-[#d9ff00]" />
+                  <input type="password" placeholder="Confirm Passphrase" required value={signupForm.confirmPassword} onChange={e => setSignupForm({...signupForm, confirmPassword: e.target.value})} className="w-full bg-black border border-white/10 p-4 rounded-2xl outline-none focus:border-[#d9ff00]" />
+                </div>
                 <button type="submit" className="w-full bg-[#d9ff00] text-black py-5 rounded-2xl font-black uppercase tracking-widest">Register Identity</button>
               </form>
             ) : (
               <form onSubmit={handleLogin} className="space-y-6">
-                <input type="tel" placeholder="WhatsApp No." required value={loginPhone} onChange={e => setLoginPhone(e.target.value)} className="w-full bg-black border border-white/10 p-5 rounded-2xl outline-none focus:border-[#d9ff00]" />
+                {/* Phone Input with +91 Prefix for Login */}
+                <div className="flex bg-black border border-white/10 rounded-2xl overflow-hidden focus-within:border-[#d9ff00] transition-colors">
+                  <div className="px-5 flex items-center bg-white/5 border-r border-white/10 text-gray-400 font-black text-sm">+91</div>
+                  <input 
+                    type="tel" 
+                    placeholder="10-Digit No." 
+                    required 
+                    value={loginPhone} 
+                    maxLength={10}
+                    inputMode="numeric"
+                    onChange={e => setLoginPhone(handlePhoneFilter(e.target.value))} 
+                    className="flex-1 bg-transparent p-5 outline-none text-white placeholder-gray-600" 
+                  />
+                </div>
                 <input type="password" placeholder="Passphrase" required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className="w-full bg-black border border-white/10 p-5 rounded-2xl outline-none focus:border-[#d9ff00]" />
                 <button type="submit" className="w-full bg-[#d9ff00] text-black py-5 rounded-2xl font-black uppercase tracking-widest">Authorize Access</button>
               </form>
@@ -672,7 +721,7 @@ const App: React.FC = () => {
                             </div>
                           </div>
                         ))}
-                        {userTickets.length === 0 && <div className="text-center py-32 text-gray-700 uppercase font-black text-[11px] tracking-widest border border-dashed border-white/5 rounded-[3rem]">No records retrieved from the cloud collective.</div>}
+                        {userTickets.length === 0 && <div className="text-center py-32 text-gray-700 uppercase font-black text-[11px] tracking-widest border border-dashed border-white/5 rounded-[3rem]">No records retrieved from hub.</div>}
                       </div>
                     )}
                   </div>

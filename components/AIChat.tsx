@@ -5,19 +5,51 @@
 */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Sparkles, Activity } from 'lucide-react';
+import { MessageCircle, X, Send, Sparkles, Users, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { sendMessageToGemini } from '../services/geminiService';
-import { ChatMessage } from '../types';
+import { User } from '../types';
 
-const AIChat: React.FC = () => {
+interface ChatMessage {
+  id: string;
+  userId: string;
+  userName: string;
+  userPic?: string;
+  text: string;
+  timestamp: number;
+}
+
+const INITIAL_MESSAGES: ChatMessage[] = [
+  { id: 'm1', userId: 'system', userName: 'Aryan (Bhopal)', text: 'Upper Lake route looking fresh today! Who is in?', timestamp: Date.now() - 3600000 },
+  { id: 'm2', userId: 'system', userName: 'Sara (Indore)', text: 'Super Corridor sprint was wild last Saturday. Cant wait for the rave!', timestamp: Date.now() - 1800000 },
+  { id: 'm3', userId: 'system', userName: 'Coach Rohan', text: 'Remember to stay hydrated, collective! ⚡️', timestamp: Date.now() - 600000 },
+];
+
+interface AIChatProps {
+  currentUser: User | null;
+}
+
+const AIChat: React.FC<AIChatProps> = ({ currentUser }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'model', text: 'Coach STRIDE here. Ready to hit the road in Bhopal or Indore? Ask me anything! 🏃‍♂️⚡️' }
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Load messages from local storage or use initial ones
+  useEffect(() => {
+    const saved = localStorage.getItem('genrun_community_messages');
+    if (saved) {
+      setMessages(JSON.parse(saved));
+    } else {
+      setMessages(INITIAL_MESSAGES);
+    }
+  }, []);
+
+  // Save messages whenever they change
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem('genrun_community_messages', JSON.stringify(messages));
+    }
+  }, [messages]);
 
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
@@ -30,21 +62,25 @@ const AIChat: React.FC = () => {
   };
 
   useEffect(() => {
-    scrollToBottom();
+    if (isOpen) {
+      setTimeout(scrollToBottom, 100);
+    }
   }, [messages, isOpen]);
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
+  const handleSend = () => {
+    if (!input.trim() || !currentUser) return;
 
-    const userMessage: ChatMessage = { role: 'user', text: input };
-    setMessages(prev => [...prev, userMessage]);
+    const newMessage: ChatMessage = {
+      id: Math.random().toString(36).substr(2, 9),
+      userId: currentUser.id,
+      userName: currentUser.name,
+      userPic: currentUser.profilePic,
+      text: input.trim(),
+      timestamp: Date.now(),
+    };
+
+    setMessages(prev => [...prev, newMessage]);
     setInput('');
-    setIsLoading(true);
-
-    const responseText = await sendMessageToGemini(input);
-    
-    setMessages(prev => [...prev, { role: 'model', text: responseText }]);
-    setIsLoading(false);
   };
 
   return (
@@ -55,20 +91,20 @@ const AIChat: React.FC = () => {
             initial={{ opacity: 0, y: 20, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            className="mb-6 w-[90vw] md:w-[400px] bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-black"
+            className="mb-6 w-[90vw] md:w-[400px] bg-zinc-900 border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl shadow-black"
           >
             {/* Header */}
-            <div className="bg-[#d9ff00] p-5 flex justify-between items-center">
+            <div className="bg-[#d9ff00] p-6 flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <div className="bg-black p-2 rounded-full">
-                  <Activity className="w-5 h-5 text-[#d9ff00]" />
+                <div className="bg-black p-2 rounded-xl">
+                  <Users className="w-5 h-5 text-[#d9ff00]" />
                 </div>
                 <div>
-                  <h3 className="font-heading font-bold text-black text-sm tracking-wider">STRIDE-AI</h3>
-                  <p className="text-[10px] text-black/60 font-black uppercase">Lead Coach</p>
+                  <h3 className="font-heading font-bold text-black text-xs tracking-widest uppercase">Collective Chat</h3>
+                  <p className="text-[9px] text-black/60 font-black uppercase tracking-tighter">Live Bhopal & Indore Hub</p>
                 </div>
               </div>
-              <button onClick={() => setIsOpen(false)} className="text-black/50 hover:text-black">
+              <button onClick={() => setIsOpen(false)} className="text-black/50 hover:text-black transition-colors">
                 <X className="w-6 h-6" />
               </button>
             </div>
@@ -76,54 +112,68 @@ const AIChat: React.FC = () => {
             {/* Messages */}
             <div 
               ref={chatContainerRef}
-              className="h-[400px] overflow-y-auto p-6 space-y-4 scroll-smooth bg-black/40"
+              className="h-[400px] overflow-y-auto p-6 space-y-6 scroll-smooth bg-black/40 custom-scrollbar"
             >
-              {messages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
+              {messages.map((msg) => {
+                const isMe = msg.userId === currentUser?.id;
+                return (
                   <div
-                    className={`max-w-[85%] p-4 rounded-xl text-sm leading-relaxed ${
-                      msg.role === 'user'
-                        ? 'bg-[#d9ff00] text-black font-medium rounded-tr-none shadow-lg shadow-[#d9ff00]/10'
-                        : 'bg-white/5 text-gray-200 rounded-tl-none border border-white/10'
-                    }`}
+                    key={msg.id}
+                    className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                   >
-                    {msg.text}
+                    <div className={`flex items-center gap-2 mb-1.5 ${isMe ? 'flex-row-reverse' : ''}`}>
+                      {msg.userPic ? (
+                        <img src={msg.userPic} className="w-5 h-5 rounded-full object-cover border border-white/10" alt="" />
+                      ) : (
+                        <div className="w-5 h-5 rounded-full bg-zinc-800 flex items-center justify-center text-[8px] font-black uppercase text-gray-500">
+                          {msg.userName.charAt(0)}
+                        </div>
+                      )}
+                      <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                        {isMe ? 'You' : msg.userName}
+                      </span>
+                    </div>
+                    <div
+                      className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed ${
+                        isMe
+                          ? 'bg-[#d9ff00] text-black font-semibold rounded-tr-none shadow-lg shadow-[#d9ff00]/10'
+                          : 'bg-zinc-800/50 text-gray-200 rounded-tl-none border border-white/5'
+                      }`}
+                    >
+                      {msg.text}
+                    </div>
                   </div>
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-white/5 p-4 rounded-xl rounded-tl-none flex gap-1.5 border border-white/10">
-                    <span className="w-1.5 h-1.5 bg-[#d9ff00] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-1.5 h-1.5 bg-[#d9ff00] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-1.5 h-1.5 bg-[#d9ff00] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
-                </div>
-              )}
+                );
+              })}
             </div>
 
             {/* Input */}
             <div className="p-4 border-t border-white/5 bg-zinc-900">
-              <div className="flex gap-3 bg-black/50 p-2 rounded-xl border border-white/5">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="Ask about routes, hydration, training..."
-                  className="flex-1 bg-transparent text-white placeholder-gray-600 text-sm focus:outline-none px-2"
-                />
-                <button
-                  onClick={handleSend}
-                  disabled={isLoading || !input.trim()}
-                  className="bg-[#d9ff00] p-3 rounded-lg hover:brightness-110 transition-all disabled:opacity-50"
-                >
-                  <Send className="w-4 h-4 text-black" />
-                </button>
-              </div>
+              {currentUser ? (
+                <div className="flex gap-3 bg-black/50 p-2 rounded-2xl border border-white/5">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                    placeholder="Message the collective..."
+                    className="flex-1 bg-transparent text-white placeholder-gray-600 text-sm focus:outline-none px-3"
+                  />
+                  <button
+                    onClick={handleSend}
+                    disabled={!input.trim()}
+                    className="bg-[#d9ff00] p-3 rounded-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
+                  >
+                    <Send className="w-4 h-4 text-black" />
+                  </button>
+                </div>
+              ) : (
+                <div className="py-4 text-center">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 flex items-center justify-center gap-2">
+                    <Lock size={12} /> Access Terminal Required to Chat
+                  </p>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
@@ -141,7 +191,7 @@ const AIChat: React.FC = () => {
         ) : (
           <div className="relative">
             <MessageCircle className="w-8 h-8 text-black" />
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-black rounded-full border-2 border-[#d9ff00] animate-ping" />
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-black animate-pulse" />
           </div>
         )}
       </motion.button>

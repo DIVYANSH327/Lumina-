@@ -10,6 +10,7 @@ export interface User {
   phone: string;
   password?: string; // Stored in plain text for this local-only mock app
   city: 'Bhopal' | 'Indore';
+  profilePic?: string; // Base64 data URL
 }
 
 export interface RunEvent {
@@ -25,6 +26,7 @@ export interface RunEvent {
   description: string;
   distance: string;
   startTime: string;
+  basePrice: number;
 }
 
 export interface UserTicket {
